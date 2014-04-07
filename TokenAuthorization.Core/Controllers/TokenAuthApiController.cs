@@ -69,17 +69,22 @@ namespace TokenAuthorization.Core.Controllers
             User = new UserMetadata(DateTime.MinValue, 0, string.Empty, false, UserRole.Unknown);
         }
 
-        private CookieHeaderValue CreateLoginTokenCookie(int userId, string username, UserRole role, DateTimeOffset expireTime)
+        private CookieHeaderValue CreateLoginTokenCookie(int userId, string username, UserRole role, DateTimeOffset? expireTime)
         {
             var tokenProvider = TokenAuthenticationConfiguration.TokenProvider;
             var token = tokenProvider.CreateToken(userId, username, role);
 
             var tokenCookie = new CookieHeaderValue(TokenAuthenticationConfiguration.TokenName, token)
             {
-                Expires = expireTime,
                 Domain = Request.RequestUri.Host == LocalHost ? null : Request.RequestUri.Host,
                 Path = "/"
             };
+
+            if (expireTime != null)
+            {
+                tokenCookie.Expires = expireTime;
+            }
+
             return tokenCookie;
         }
 
@@ -94,10 +99,11 @@ namespace TokenAuthorization.Core.Controllers
             return tokenCookie;
         }
 
-        protected virtual HttpResponseMessage Login(int userId, string username, UserRole role)
+        protected virtual HttpResponseMessage Login(int userId, string username, UserRole role, bool rememberMe)
         {
             var response = Request.CreateResponse(HttpStatusCode.OK);
-            var tokenCookie = CreateLoginTokenCookie(userId, username, role, DateTimeOffset.MaxValue);
+            var tokenCookie = CreateLoginTokenCookie(userId, username, role, rememberMe ? DateTime.Now.AddDays(14)
+                                                                                        : (DateTime?)null);
             response.Headers.AddCookies(new[] { tokenCookie });
 
             return response;
